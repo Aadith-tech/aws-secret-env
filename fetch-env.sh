@@ -14,6 +14,7 @@ fi
 echo "Fetching secret: $SECRET_NAME from region: $AWS_REGION"
 
 SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --profile "iamadmin-general" \
   --secret-id "$SECRET_NAME" \
   --region "$AWS_REGION" \
   --query SecretString \
