@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-Based on your current workflow (fetching secrets from AWS Secrets Manager using a .sh script and converting them to .env files in GitHub Actions CI/CD), this report evaluates **cost-effective alternatives** that maintain compatibility with your existing pipeline architecture.
+Based on the current workflow (fetching secrets from AWS Secrets Manager using a .sh script and converting them to .env files in GitHub Actions CI/CD), this report evaluates **cost-effective alternatives** that maintain compatibility with your existing pipeline architecture.
 
 **Current AWS Secrets Manager Costs:**
 - **$0.40 per secret per month**
