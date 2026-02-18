@@ -24,6 +24,8 @@ All alternatives below **support CLI/script-based secret fetching** and can be u
 | **Infisical** | Native CLI | `infisical export --format=dotenv > .env` | Built-in |
 | **Doppler** | Native CLI | `doppler secrets download --format env > .env` | Built-in |
 | **Vault** | Native CLI | `vault kv get -field=value secret/path` | Manual script |
+| **Akeyless (Keyless Secrets)** | Native CLI | `akeyless get-secret-value --name <secret>` | Manual script |
+
 
 ---
 
