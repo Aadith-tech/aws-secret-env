@@ -43,9 +43,9 @@ jobs:
       # Ref: https://infisical.com/docs/cli/overview#installation
       - name: Install Infisical CLI
         run: |
+          curl -1sLf 'https://artifacts-cli.infisical.com/setup.deb.sh' | sudo -E bash
           sudo apt-get update
-          sudo apt-get install -y curl bash unzip
-          curl -fsSL https://raw.githubusercontent.com/Infisical/infisical/main/cli/scripts/install.sh | bash
+          sudo apt-get install -y infisical
           infisical --version
       # Fetch secrets via fetch-infisical-env.sh
       #   Required GitHub Secrets:
