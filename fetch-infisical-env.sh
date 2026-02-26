@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
-# =============================================================
+
 #  fetch-infisical-env.sh
 #  Fetches secrets from Infisical using the Infisical CLI
-#  and writes them to a .env file — mirrors fetch-env.sh style
-#
-#  Install CLI (one-time):
-#    curl -1sLf 'https://artifacts.infisical.com/setup.deb.sh' | sudo -E bash
-#    sudo apt-get update && sudo apt-get install -y infisical
-#    Ref: https://infisical.com/docs/cli/overview#installation
+#  and writes them to a .env file in dotenv format.
+
 #  Usage:
 #    ./fetch-infisical-env.sh <environment> <project_id> [output_file]
 #
@@ -21,15 +17,15 @@
 #
 #  Example:
 #    INFISICAL_TOKEN=st.xxx ./fetch-infisical-env.sh dev abc-123 .env
-# =============================================================
+
 set -euo pipefail
 
-# ── Arguments ─────────────────────────────────────────────────
+# Arguments
 APP_ENV="${1:-}"
 PROJECT_ID="${2:-}"
 OUTPUT_FILE="${3:-.env}"
 
-# ── Validation ────────────────────────────────────────────────
+# Validation
 if [[ -z "$APP_ENV" || -z "$PROJECT_ID" ]]; then
   echo "Usage: $0 <environment> <project_id> [output_file]"
   echo "  environment   e.g. dev | staging | prod"
@@ -44,20 +40,12 @@ if [[ -z "${INFISICAL_TOKEN:-}" ]]; then
   exit 1
 fi
 
-echo "──────────────────────────────────────────────────────"
 echo "  Fetching secrets from Infisical"
 echo "  Project  : $PROJECT_ID"
 echo "  Env      : $APP_ENV"
 echo "  Output   : $OUTPUT_FILE"
-echo "──────────────────────────────────────────────────────"
 
-# ── Fetch & export secrets as dotenv format ───────────────────
-#
-#   infisical export authenticates via INFISICAL_TOKEN (env var),
-#   queries the given project + environment, and dumps all
-#   secrets in KEY=VALUE format — exactly like fetch-env.sh does
-#   for AWS Secrets Manager.
-# ─────────────────────────────────────────────────────────────
+# Fetch & export secrets as dotenv format
 SECRET_OUTPUT=$(infisical export \
   --projectId  "$PROJECT_ID" \
   --env        "$APP_ENV" \
@@ -69,7 +57,7 @@ if [[ -z "$SECRET_OUTPUT" ]]; then
   exit 1
 fi
 
-# ── Write .env file ───────────────────────────────────────────
+# Write .env file
 {
   echo "# Source  : Infisical (Project: $PROJECT_ID)"
   echo "# Env     : $APP_ENV"
