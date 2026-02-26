@@ -1,100 +1,242 @@
-# Fetch Secret Manager
+# 🔐 Secret Manager — Infisical + GitHub Actions CI/CD
 
-A lightweight bash script to fetch secrets from AWS Secrets Manager and convert them to `.env` format.
+A professional, production-ready demo that integrates **Infisical Secret Manager** into a **GitHub Actions** pipeline to securely inject secrets **before** a Docker image build.
 
-## Overview
+---
 
-This utility script retrieves JSON secrets stored in AWS Secrets Manager and automatically converts them into environment variable format (`.env`) for use in your application. It parses JSON key-value pairs and generates a properly formatted environment file.
+## 📐 Architecture Overview
 
-## Requirements
-- **AWS CLI** (version 2.0+) installed and configured
-- **AWS Credentials** configured with appropriate IAM permissions
-
-### AWS Permissions Required
-
-Your AWS credentials need the following permission to access secrets:
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": "secretsmanager:GetSecretValue",
-      "Resource": "arn:aws:secretsmanager:*:*:secret:*"
-    }
-  ]
-}
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     GitHub Actions Pipeline                  │
+│                                                             │
+│  ┌──────────────┐     ┌──────────────┐    ┌─────────────┐  │
+│  │   Checkout   │────▶│   Infisical  │───▶│  .env File  │  │
+│  │     Code     │     │ Secret Fetch │    │  Generated  │  │
+│  └──────────────┘     └──────────────┘    └──────┬──────┘  │
+│                                                  │         │
+│                                           ┌──────▼──────┐  │
+│                                           │   Docker    │  │
+│                                           │    Build    │  │
+│                                           └──────┬──────┘  │
+│                                                  │         │
+│                                           ┌──────▼──────┐  │
+│                                           │   Push to   │  │
+│                                           │    GHCR     │  │
+│                                           └─────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Installation
+> Secrets are **fetched at pipeline runtime** — they are **never stored** in the repository, Dockerfile, or any config file.
 
-1. Clone or download the repository:
-   ```bash
-   git clone <repository-url>
-   cd fetch_secret-manager
-   ```
+---
 
-2. Make the script executable:
-   ```bash
-   chmod +x fetch-env.sh
-   ```
+## 🗂 Repository Structure
 
-## Usage
+```
+fetch_secret-manager/
+├── .github/
+│   └── workflows/
+│       └── build-with-infisical.yml   ← GitHub Actions workflow
+├── SM_Alternative/
+│   └── updated_doc.md                 ← Comparison: AWS SM alternatives
+├── Dockerfile                         ← Demo Docker image
+├── fetch-env.sh                       ← Legacy: AWS Secrets Manager helper
+├── fetch-infisical-env.sh             ← Infisical CLI secret fetcher (.sh)
+└── README.md
+```
 
-### Basic Usage
+---
+
+## 🔑 Infisical Setup (One-Time)
+
+### 1. Create an Infisical Account & Project
+1. Sign up at [app.infisical.com](https://app.infisical.com)
+2. Create an **Organization** → **New Project** → name it `secret-management`
+3. Under **Development** environment, add your secrets:
+
+   | Secret Name | Example Value    |
+   |-------------|------------------|
+   | `APIKEY`    | `my-api-key-123` |
+   | `PASSWORD`  | `supersecret`    |
+
+### 2. Create a Machine Identity & Token
+1. Go to **Project Settings → Access Control → Machine Identities**
+2. Click **Create Machine Identity**
+3. Assign role: **`Developer`** (or `Reader` for least-privilege)
+4. After creation, click the identity → **Universal Auth → Create Token**
+5. Copy the **token** (starts with `st.`) — this becomes `INFISICAL_TOKEN`
+
+### 3. Find Your Project ID
+The Project ID is visible in the Infisical dashboard URL:
+```
+app.infisical.com/…/projects/secret-management/[PROJECT_ID]/overview
+                                                     ↑
+                              Copy this UUID (e.g. 37478544-d03d-421c-ae93-873d9ebcebbb)
+```
+
+---
+
+## ⚙️ GitHub Repository Secrets Configuration
+
+Go to your GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret Name               | Value                                          |
+|---------------------------|------------------------------------------------|
+| `INFISICAL_TOKEN`         | Universal Auth token from Machine Identity     |
+| `INFISICAL_PROJECT_ID`    | Your Infisical Project UUID                    |
+
+> ⚠️ **Never** hardcode these values in any file or workflow YAML.
+
+---
+
+## 🚀 GitHub Actions Workflow
+
+**File:** `.github/workflows/build-with-infisical.yml`
+
+### Triggers
+
+| Event               | Behavior                                   |
+|---------------------|--------------------------------------------|
+| Push to `main`      | Full build → push to GHCR (production)     |
+| Push to `develop`   | Full build → push to GHCR (dev tag)        |
+| Pull Request        | Build only — **no push**                   |
+| `workflow_dispatch` | Manual trigger with environment selection  |
+
+### Pipeline Jobs
+
+```
+Job 1: fetch-secrets-and-build
+  ├── 📥 Checkout code
+  ├── 📦 Install Infisical CLI
+  ├── 🔐 Run fetch-infisical-env.sh  ← .env written here
+  ├── ✅ Verify .env file generated
+  ├── 🛠  Set up Docker Buildx
+  ├── 🔑 Log in to GHCR
+  ├── 🏷  Extract Docker metadata (tags)
+  ├── 🐳 Build & Push Docker image
+  └── 📋 Print build summary
+
+Job 2: security-scan (runs after Job 1)
+  └── 🛡 Trivy vulnerability scan
+```
+
+### Manual Trigger (Workflow Dispatch)
+
+You can manually run the pipeline from **GitHub → Actions → Build & Push Docker Image** and select the target environment:
+
+```
+Environment options:
+  • dev      → fetches from Development secrets
+  • staging  → fetches from Staging secrets
+  • prod     → fetches from Production secrets
+```
+
+---
+
+## 🐳 Docker Image
+
+The image is published to **GitHub Container Registry (GHCR)**:
+
+```
+ghcr.io/<your-github-username>/test-workflow-app:latest
+ghcr.io/<your-github-username>/test-workflow-app:dev-<sha>
+ghcr.io/<your-github-username>/test-workflow-app:main
+```
+
+### Build Arguments
+
+| Argument  | Description                   | Default |
+|-----------|-------------------------------|---------|
+| `APP_ENV` | Target environment name       | `dev`   |
+| `GIT_SHA` | Git commit SHA (traceability) | `local` |
+
+---
+
+## 🔄 Secret Injection Flow (Step-by-Step)
+
+```
+1. GitHub Actions runner starts
+2. Infisical CLI is installed on the runner (apt package)
+3. fetch-infisical-env.sh is called with env + project_id args
+   └── Authenticates via: INFISICAL_TOKEN (env var)
+4. CLI runs: infisical export --projectId ... --env ... --format dotenv
+   └── Returns all secrets as KEY=VALUE lines
+5. .env file is written with a header + all secret key=value pairs
+   └── Written to: .env (workspace root)
+6. Docker build picks up the .env file via COPY .env .env
+7. Image is pushed to GHCR
+```
+
+---
+
+## 🛡 Security Best Practices
+
+| Practice                       | How It's Implemented                              |
+|--------------------------------|---------------------------------------------------|
+| No secrets in repo             | All secrets live exclusively in Infisical         |
+| Masked in logs                 | GitHub Actions auto-masks secret values           |
+| Least-privilege access         | Machine Identity scoped to read-only              |
+| Short-lived credentials        | Machine Identity tokens expire automatically      |
+| Vulnerability scanning         | Trivy scans the final image post-build            |
+| No push on PRs                 | `push: github.event_name != 'pull_request'`       |
+| Secrets not in build args      | Secrets injected via env, not `--build-arg`       |
+
+---
+
+## 📦 Local Development (Legacy — AWS Secrets Manager)
+
+The `fetch-env.sh` script in this repo still supports fetching from **AWS Secrets Manager** for local use:
 
 ```bash
-./fetch-env.sh <secret_name> <region> [output_file]
+chmod +x fetch-env.sh
+./fetch-env.sh <secret_name> <aws_region> [output_file]
+
+# Example
+./fetch-env.sh my-app-config us-east-1 .env.local
 ```
 
-### Parameters
+> For the full comparison of AWS SM vs Infisical vs other alternatives, see [`SM_Alternative/updated_doc.md`](SM_Alternative/updated_doc.md).
 
-| Parameter | Required | Description | Default |
-|-----------|----------|-------------|---------|
-| `secret_name` | Yes | The name or ARN of the secret in AWS Secrets Manager | - |
-| `region` | Yes | AWS region where the secret is stored (e.g., `us-east-1`) | - |
-| `output_file` | No | Output file path for the generated `.env` file | `.env` |
+---
 
-### Examples
+## 🔧 Shell Script — fetch-infisical-env.sh
 
-**Fetch a secret and save to the default `.env` file:**
+This script mirrors `fetch-env.sh` but targets **Infisical** instead of AWS Secrets Manager.
+
 ```bash
-./fetch-env.sh my-app-config us-east-1
+# Usage
+chmod +x fetch-infisical-env.sh
+INFISICAL_TOKEN=st.xxx ./fetch-infisical-env.sh <environment> <project_id> [output_file]
+
+# Examples
+INFISICAL_TOKEN=st.xxx ./fetch-infisical-env.sh dev   abc-123-uuid  .env
+INFISICAL_TOKEN=st.xxx ./fetch-infisical-env.sh staging abc-123-uuid .env.staging
+INFISICAL_TOKEN=st.xxx ./fetch-infisical-env.sh prod  abc-123-uuid  .env.production
 ```
 
-**Fetch a secret and save to a custom file:**
-```bash
-./fetch-env.sh prod/database/credentials eu-west-1 config.env
-```
+| Argument       | Required | Description                              | Default |
+|----------------|----------|------------------------------------------|---------|
+| `environment`  | Yes      | Infisical env slug (`dev/staging/prod`)  | —       |
+| `project_id`   | Yes      | Infisical Project UUID                   | —       |
+| `output_file`  | No       | Path for the generated `.env` file       | `.env`  |
 
-**Fetch a secret in a different AWS region:**
-```bash
-./fetch-env.sh api-keys ap-southeast-1 .env.production
-```
+---
 
-## How It Works
+## 📋 Environment Summary
 
-1. Validates that both `secret_name` and `region` parameters are provided
-2. Fetches the secret value from AWS Secrets Manager using the AWS CLI
-3. Extracts the JSON secret value from the API response
-4. Parses the JSON and converts key-value pairs to environment variable format:
-   - Removes curly braces `{}`
-   - Removes double quotes `"`
-   - Converts colons `:` to equals signs `=`
-   - Splits entries by newlines
-5. Creates the output `.env` file with a header comment referencing the source secret
-6. Displays confirmation message with the output file path
+| Environment | Infisical Slug | GitHub Branch |
+|-------------|----------------|---------------|
+| Development | `dev`          | `develop`     |
+| Staging     | `staging`      | `develop`     |
+| Production  | `prod`         | `main`        |
 
-## Output Format
+---
 
-The generated `.env` file will look like:
+## 📎 References
 
-```env
-# Generated from secret: my-app-config (region: us-east-1)
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=admin
-DB_PASSWORD=secretpassword
-API_KEY=your-api-key
-```
-
+- [Infisical Documentation](https://infisical.com/docs)
+- [Infisical GitHub Action](https://github.com/Infisical/secrets-action)
+- [Docker Build Push Action](https://github.com/docker/build-push-action)
+- [GitHub Container Registry (GHCR)](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+- [Trivy Vulnerability Scanner](https://github.com/aquasecurity/trivy-action)

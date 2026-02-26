@@ -1,0 +1,13 @@
+{
+  "name": "test-workflow-app",
+  "version": "1.0.0",
+  "description": "Demo app — Infisical secret manager + Docker build",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  }
+}
+
