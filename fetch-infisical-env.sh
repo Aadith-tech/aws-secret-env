@@ -4,6 +4,10 @@
 #  Fetches secrets from Infisical using the Infisical CLI
 #  and writes them to a .env file — mirrors fetch-env.sh style
 #
+#  Install CLI (one-time):
+#    curl -1sLf 'https://artifacts.infisical.com/setup.deb.sh' | sudo -E bash
+#    sudo apt-get update && sudo apt-get install -y infisical
+#    Ref: https://infisical.com/docs/cli/overview#installation
 #  Usage:
 #    ./fetch-infisical-env.sh <environment> <project_id> [output_file]
 #
