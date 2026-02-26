@@ -39,16 +39,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Install Infisical CLI (new official installation method)
+      # Install Infisical CLI via direct binary download (most reliable)
       # Ref: https://infisical.com/docs/cli/overview#installation
       - name: Install Infisical CLI
         run: |
-          curl -1sLf \
-            'https://artifacts.infisical.com/setup.deb.sh' \
-            | sudo -E bash
-          sudo apt-get update -y && sudo apt-get install -y infisical
+          sudo apt-get update
+          sudo apt-get install -y curl bash unzip
+          curl -fsSL https://raw.githubusercontent.com/Infisical/infisical/main/cli/scripts/install.sh | bash
           infisical --version
-
       # Fetch secrets via fetch-infisical-env.sh
       #   Required GitHub Secrets:
       #     INFISICAL_TOKEN      → Universal Auth machine identity token
